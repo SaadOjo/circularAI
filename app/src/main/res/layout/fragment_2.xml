@@ -7,13 +7,36 @@
     tools:context=".fragment_2">
 
     <TextView
+        android:id="@+id/textView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Second Fragment"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:fontFamily="sans-serif-condensed-light"
+        android:text="Recycling points highlighted in RED"
+        android:textAppearance="@style/TextAppearance.AppCompat.Large"
+        android:textColor="#F44336"
+        android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <com.mapbox.maps.MapView
+        android:id="@+id/mapView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView"
+        app:mapbox_cameraTargetLat="40.7128"
+        app:mapbox_cameraTargetLng="-74.0060"
+        app:mapbox_cameraZoom="14.0" />
+
+    <androidx.constraintlayout.widget.Guideline
+        android:id="@+id/guideline2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintGuide_begin="20dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,13 +1,23 @@
 package com.example.circularai
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Button
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.circularai.databinding.ActivityMainBinding
+import kotlin.random.Random
 
 class MainActivity : AppCompatActivity() {
+
+    private val permissions = listOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.CAMERA)
+    private val permissionsRequestCode = Random.nextInt(0, 10000)
 
     lateinit var binding: ActivityMainBinding;
 
@@ -46,5 +56,39 @@ class MainActivity : AppCompatActivity() {
             commit()
             return true
         }
+    }
+    override fun onResume() {
+        super.onResume()
+
+        // Request permissions each time the app resumes, since they can be revoked at any time
+        if (!hasPermissions(this)) {
+            ActivityCompat.requestPermissions(
+                this, permissions.toTypedArray(), permissionsRequestCode)
+        } else {
+            start_gps()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == permissionsRequestCode && hasPermissions(this)) {
+            start_gps()
+        } else {
+            finish() // If we don't have the required permissions, we can't run
+        }
+    }
+
+    /** Convenience method used to check if all permissions required by this app are granted */
+    private fun hasPermissions(context: Context) = permissions.all {
+        ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun start_gps(): Boolean {
+        Toast.makeText(this, "Permissions have been granted", Toast.LENGTH_LONG).show()
+        return true
     }
 }
