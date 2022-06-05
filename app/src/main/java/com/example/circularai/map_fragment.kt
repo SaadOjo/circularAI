@@ -1,32 +1,21 @@
 package com.example.circularai
 
-import android.content.Context
 import android.os.Bundle
 import androidx.fragment.app.Fragment
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
-import android.widget.Toast
-import androidx.appcompat.content.res.AppCompatResources
-import com.example.circularai.databinding.Fragment1Binding
-import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
 import com.mapbox.geojson.Point.fromLngLat
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
-import com.mapbox.maps.extension.style.expressions.dsl.generated.interpolate
-import com.mapbox.maps.plugin.LocationPuck2D
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.CircleAnnotationOptions
 import com.mapbox.maps.plugin.annotation.generated.createCircleAnnotationManager
-import com.mapbox.maps.plugin.gestures.OnMoveListener
 import com.mapbox.maps.plugin.gestures.gestures
-import com.mapbox.maps.plugin.locationcomponent.OnIndicatorBearingChangedListener
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
 import com.mapbox.maps.plugin.locationcomponent.location
 
-class fragment_2 : Fragment(R.layout.fragment_2) {
+class map_fragment : Fragment(R.layout.fragment_map) {
 
     lateinit var mapView:MapView
 

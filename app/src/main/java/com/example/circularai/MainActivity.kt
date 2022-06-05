@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.widget.Button
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
@@ -27,8 +26,8 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(getLayoutInflater())
         setContentView(binding.root)
 
-        val f1 = fragment_1()
-        val f2 = fragment_2()
+        val f1 = detector_fragment()
+        val f2 = map_fragment()
 
         supportFragmentManager.beginTransaction().apply {
             replace(R.id.fragment, f1)
