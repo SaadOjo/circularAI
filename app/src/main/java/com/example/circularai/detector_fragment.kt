@@ -3,6 +3,8 @@ package com.example.circularai
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.Matrix
+import android.graphics.Rect
+import android.graphics.fonts.Font
 import android.os.Bundle
 import android.util.DisplayMetrics
 import android.util.Log
@@ -24,6 +26,12 @@ import androidx.core.graphics.scale
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.LifecycleOwner
 import com.example.android.camerax.tflite.ObjectDetectionHelper
+import org.opencv.android.OpenCVLoader
+import org.opencv.android.Utils
+import org.opencv.core.Mat
+import org.opencv.core.Point
+import org.opencv.core.Scalar
+import org.opencv.imgproc.Imgproc
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.nnapi.NnApiDelegate
@@ -56,7 +64,7 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
                 ResizeOp(
                 tfInputSize.height, tfInputSize.width, ResizeOp.ResizeMethod.NEAREST_NEIGHBOR)
             )
-            //.add(Rot90Op(-imageRotationDegrees / 90))
+            //.add(Rot90Op(-90))
             .add(NormalizeOp(0f, 1f))
             .build()
     }
@@ -95,6 +103,8 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         super.onViewCreated(view, savedInstanceState)
         context = requireActivity()
         val parent = context.getParent()
+        val status  = OpenCVLoader.initDebug()
+        Log.i("OPENCV", "status $status")
         bindCameraUseCases()
 
     }
@@ -141,29 +151,30 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
             var frameCounter = 0
             var lastFpsTimestamp = System.currentTimeMillis()
 
-            imageAnalysis.setAnalyzer(executor, { image ->
+            imageAnalysis.setAnalyzer(executor) { image ->
                 if (!::bitmapBuffer.isInitialized) {
                     // The image rotation and RGB image buffer are initialized only once
                     // the analyzer has started running
                     //imageRotationDegrees = image.imageInfo.rotationDegrees
                     bitmapBuffer = Bitmap.createBitmap(
-                        image.width, image.height, Bitmap.Config.ARGB_8888)
+                        image.width, image.height, Bitmap.Config.ARGB_8888
+                    )
                 }
-                Log.i("IMAGE","image width = ${image.width}, height=${image.height}")
+                //Log.i("IMAGE", "image width = ${image.width}, height=${image.height}")
                 // Copy out RGB bits to our shared buffer
-                image.use { bitmapBuffer.copyPixelsFromBuffer(image.planes[0].buffer)  }
-
+                image.use { bitmapBuffer.copyPixelsFromBuffer(image.planes[0].buffer) }
+                val rotated_bitmap = bitmapBuffer.rotate(90.0f)
                 // Process the image in Tensorflow
-                val tfImage =  tfImageProcessor.process(tfImageBuffer.apply { load(bitmapBuffer) })
+                val tfImage = tfImageProcessor.process(tfImageBuffer.apply { load(rotated_bitmap) })
 
                 // Perform the object detection for the current frame
                 val predictions = detector.predict(tfImage)
-                Log.i("DETECTOR","$predictions")
+                //Log.i("DETECTOR", "$predictions")
                 // Report only the top prediction
                 //reportPrediction(predictions.maxByOrNull { it.score })
 
-
-                viewFinder.post{viewFinder.setImageBitmap(bitmapBuffer.rotate(90.0f))}
+                val result_bitmap = augment_results(rotated_bitmap, predictions)
+                viewFinder.post { viewFinder.setImageBitmap(result_bitmap) }
 
 
                 // Compute the FPS of the entire pipeline
@@ -179,7 +190,7 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
 
                 image.close()
 
-            })
+            }
 
             // Create a new camera selector each time, enforcing lens facing
             val cameraSelector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
@@ -191,6 +202,47 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
 
             camera.cameraControl.setLinearZoom(0.4f)
         }, ContextCompat.getMainExecutor(context))
+    }
+
+    fun augment_results(bitmap:Bitmap, predictions:List<ObjectDetectionHelper.ObjectPrediction>):Bitmap{
+
+        var prediction_filtered = predictions.filter{ it.score > ACCURACY_THRESHOLD }
+
+        if(prediction_filtered.size > 0){
+            prediction_filtered = prediction_filtered.sortedBy { 1 - it.score }
+        }
+
+        if(prediction_filtered.size > 3){
+            prediction_filtered = prediction_filtered.take(3)
+        }
+
+        if(prediction_filtered.size == 0){  return bitmap }
+
+
+        //Log.i("PRED","$prediction_filtered")
+        val mat = Mat()
+        Utils.bitmapToMat(bitmap,mat)
+        val width = bitmap.width
+        val height = bitmap.height
+
+        prediction_filtered.forEach({add_prediction(mat, it)})
+        //val pred = prediction_filtered[0]
+
+        val newBitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888)
+        Utils.matToBitmap(mat, newBitmap)
+        return newBitmap
+    }
+    fun add_prediction(mat:Mat, pred:ObjectDetectionHelper.ObjectPrediction){
+        val width = mat.cols()
+        val height = mat.rows()
+        val dbl_array = DoubleArray(4)
+        dbl_array.set(0,pred.location.left*width.toDouble())
+        dbl_array.set(1,pred.location.top*height.toDouble())
+        dbl_array.set(2,(pred.location.right - pred.location.left)*width.toDouble())
+        dbl_array.set(3,(pred.location.bottom - pred.location.top)*height.toDouble())
+        val rect = org.opencv.core.Rect(dbl_array)
+        Imgproc.rectangle(mat, rect, Scalar(0.0),4)
+        Imgproc.putText(mat, pred.label, Point(pred.location.left*width.toDouble(), pred.location.top*height.toDouble() - height*0.03), Imgproc.FONT_HERSHEY_SIMPLEX,2.0, Scalar(0.0),5)
     }
 
     companion object {
