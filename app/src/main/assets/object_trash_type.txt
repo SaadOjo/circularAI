@@ -1,0 +1,91 @@
+???, trash
+person, trash
+bicycle, metal
+car, metal
+motorcycle, metal
+airplane, metal
+bus, metal
+train, metal
+truck, metal
+boat, metal
+traffic light, plastic
+fire hydrant, metal
+???, trash
+stop sign, metal
+parking meter, metal
+bench, metal
+bird, trash
+cat, trash
+dog, trash
+horse, trash
+sheep, trash
+cow, trash
+elephant, trash
+bear, trash
+zebra, trash
+giraffe, trash
+???, trash
+backpack, plastic
+umbrella, plastic
+???, trash
+???, trash
+handbag, plastic
+tie, trash
+suitcase, plastic
+frisbee, plastic
+skis, plastic
+snowboard, plastic
+sports ball, plastic
+kite, trash
+baseball bat, trash
+baseball glove, trash
+skateboard, trash
+surfboard, trash
+tennis racket, plastic
+bottle, plastic
+???, trash
+wine glass, glass
+cup, paper
+fork, metal
+knife, metal
+spoon, metal
+bowl, glass
+banana, trash
+apple, trash
+sandwich, trash
+orange, trash
+broccoli, trash
+carrot, trash
+hot dog, trash
+pizza, trash
+donut, trash
+cake, trash
+chair, metal
+couch, trash
+potted plant, trash
+bed, metal
+???, trash
+dining table, trash
+???, trash
+???, trash
+toilet, trash
+???, trash
+tv, plastic
+laptop, plastic
+mouse, trash
+remote, plastic
+keyboard, plastic
+cell phone, plastic
+microwave, metal
+oven, metal
+toaster, metal
+sink, glass
+refrigerator, metal
+???, trash
+book, paper
+clock, plastic
+vase, glass
+scissors, metal
+teddy bear, trash
+hair drier, plastic
+toothbrush, plastic

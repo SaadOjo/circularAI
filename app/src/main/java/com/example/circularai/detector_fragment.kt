@@ -2,28 +2,22 @@ package com.example.circularai
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.Matrix
-import android.graphics.Rect
-import android.graphics.fonts.Font
 import android.os.Bundle
-import android.util.DisplayMetrics
 import android.util.Log
 import android.util.Size
 import android.view.Surface
 import androidx.fragment.app.Fragment
 import android.view.View
-import android.view.ViewGroup
 import android.widget.ImageView
-import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
-import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.scale
+import androidx.core.os.bundleOf
 import androidx.fragment.app.FragmentActivity
+import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.LifecycleOwner
 import com.example.android.camerax.tflite.ObjectDetectionHelper
 import org.opencv.android.OpenCVLoader
@@ -41,9 +35,10 @@ import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
 import org.tensorflow.lite.support.image.ops.ResizeWithCropOrPadOp
-import org.tensorflow.lite.support.image.ops.Rot90Op
+import java.io.File
 import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
+import kotlin.properties.Delegates
+
 
 class detector_fragment : Fragment(R.layout.fragment_detector) {
 
@@ -51,8 +46,16 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
     private lateinit var bitmapBuffer: Bitmap
     private val executor = Executors.newSingleThreadExecutor()
     private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
-    private val isFrontFacing get() = lensFacing == CameraSelector.LENS_FACING_FRONT
     private lateinit var viewFinder: ImageView
+
+    lateinit var COLOR_GLASS: Scalar
+    lateinit var COLOR_METAL: Scalar
+    lateinit var COLOR_PAPER: Scalar
+    lateinit var COLOR_TRASH: Scalar
+    val COLOR_TEXT  = Scalar(255.0, 255.0, 255.0, 255.0)
+
+    lateinit var colors_array:Array<Scalar>
+
 
     private val tfImageBuffer = TensorImage(DataType.UINT8)
 
@@ -82,9 +85,18 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
 
     private val detector by lazy {
         ObjectDetectionHelper(
-            tflite,
-            FileUtil.loadLabels(context, LABELS_PATH)
+            tflite
         )
+    }
+    private val labelString by lazy{
+        FileUtil.loadLabels(context, LABELS_PATH)
+    }
+    private val labelTypeString by lazy{
+        //val buffered_rea
+        val labelTypeString = ArrayList<String>()
+        //InputStreamReader()
+        File(LABELS_TYPE_PATH).forEachLine { labelTypeString.add(it.split(",")[1]) }
+        return@lazy labelTypeString
     }
 
     private val tfInputSize by lazy {
@@ -100,6 +112,47 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         viewFinder = view.findViewById(R.id.view_finder)
 
+        //bind fragments
+        val types = arrayOf("Glass", "Paper", "Metal", "Trash")
+        val types_reverse_map_mutable = mutableMapOf<String, Int>()
+        types.forEachIndexed { index, s -> types_reverse_map_mutable.put(s,index)}
+        val types_reverse_map = types_reverse_map_mutable.toMap()
+
+        COLOR_GLASS = color_to_scalar(resources.getColor(R.color.Glass))
+        COLOR_METAL = color_to_scalar(resources.getColor(R.color.Metal))
+        COLOR_PAPER = color_to_scalar(resources.getColor(R.color.Paper))
+        COLOR_TRASH = color_to_scalar(resources.getColor(R.color.Trash))
+
+        colors_array = Array<Scalar>(types.size,{Scalar(0.0)})
+
+        colors_array[types_reverse_map["Glass"]?:0] = COLOR_GLASS
+        colors_array[types_reverse_map["Metal"]?:0] = COLOR_METAL
+        colors_array[types_reverse_map["Paper"]?:0] = COLOR_PAPER
+        colors_array[types_reverse_map["Trash"]?:0] = COLOR_TRASH
+
+
+        val top_left_fragment = RecyclingFragment(types[0])
+        val top_right_fragment = RecyclingFragment(types[1])
+        val bottom_left_fragment = RecyclingFragment(types[2])
+        val bottom_right_fragment = RecyclingFragment(types[3])
+
+        placeFragment(top_left_fragment, R.id.top_left_fragment_container)
+        placeFragment(top_right_fragment, R.id.top_right_fragment_container)
+        placeFragment(bottom_left_fragment, R.id.bottom_left_fragment_container)
+        placeFragment(bottom_right_fragment, R.id.bottom_right_fragment_container)
+
+        val fragments = mapOf<String, RecyclingFragment>(
+            types[0] to top_left_fragment,
+            types[1] to top_right_fragment,
+            types[2] to bottom_left_fragment,
+            types[3] to bottom_right_fragment
+        )
+        //set titles
+        fragments.forEach { (string, fragment) ->
+            setFragmentResult(string, bundleOf("type" to string))
+        }
+
+
         super.onViewCreated(view, savedInstanceState)
         context = requireActivity()
         val parent = context.getParent()
@@ -107,6 +160,7 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         Log.i("OPENCV", "status $status")
         bindCameraUseCases()
 
+        //Log.i("DATACHECK","$labelTypeString")
     }
 
     override fun onDestroyView() {
@@ -225,6 +279,8 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         val width = bitmap.width
         val height = bitmap.height
 
+        //Log.i("MATRIX",mat.)
+
         prediction_filtered.forEach({add_prediction(mat, it)})
         //val pred = prediction_filtered[0]
 
@@ -241,15 +297,40 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         dbl_array.set(2,(pred.location.right - pred.location.left)*width.toDouble())
         dbl_array.set(3,(pred.location.bottom - pred.location.top)*height.toDouble())
         val rect = org.opencv.core.Rect(dbl_array)
-        Imgproc.rectangle(mat, rect, Scalar(0.0),4)
-        Imgproc.putText(mat, pred.label, Point(pred.location.left*width.toDouble(), pred.location.top*height.toDouble() - height*0.03), Imgproc.FONT_HERSHEY_SIMPLEX,2.0, Scalar(0.0),5)
+        val trash_type = 0;
+        var rectangle_color = colors_array[trash_type];
+
+        Imgproc.rectangle(mat, rect, rectangle_color,4)
+        Imgproc.putText(mat, labelString[pred.label], Point(pred.location.left*width.toDouble(), pred.location.top*height.toDouble() - height*0.03), Imgproc.FONT_HERSHEY_SIMPLEX,2.0, COLOR_TEXT,5)
     }
+
+
 
     companion object {
         private val TAG = detector_fragment::class.java.simpleName
-
         private const val ACCURACY_THRESHOLD = 0.5f
         private const val MODEL_PATH = "coco_ssd_mobilenet_v1_1.0_quant.tflite"
         private const val LABELS_PATH = "coco_ssd_mobilenet_v1_1.0_labels.txt"
+        private const val LABELS_TYPE_PATH = "assets/object_trash_type.txt"
+    }
+
+    private fun color_to_scalar(c: Int): Scalar {
+        val color = Color.valueOf(c)
+        return Scalar(
+            color.red() * 255.toDouble(),
+            color.blue() * 255.toDouble(),
+            color.green() * 255.toDouble(),
+            255.0
+        )
+    }
+
+    fun placeFragment(fragment: Fragment, fragmentID:Int): Boolean {
+
+        parentFragmentManager.beginTransaction().apply {
+            replace(fragmentID, fragment)
+            addToBackStack(null)
+            commit()
+            return true
+        }
     }
 }
