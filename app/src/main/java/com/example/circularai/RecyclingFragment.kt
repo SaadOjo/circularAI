@@ -38,9 +38,9 @@ class RecyclingFragment(key:String) : Fragment(R.layout.fragment_recycling) {
             if (type_result != null) {
                 setType(type_result)
             }
-            val list_result = bundle.getStringArray("list")
+            val list_result = bundle.get("list")
             if (list_result != null) {
-                setElements(list_result.toList())
+                setElements(list_result as List<String>)
             }
         }
 
@@ -49,30 +49,29 @@ class RecyclingFragment(key:String) : Fragment(R.layout.fragment_recycling) {
 
     private fun setType(type:String){
         var color:Int = Color.WHITE
-        title_tv.text = type
+        title_tv.text = type.capitalize()
         when(type){
-            "Glass" -> color = resources.getColor(R.color.Glass)
-            "Paper" -> color = resources.getColor(R.color.Paper)
-            "Metal" -> color = resources.getColor(R.color.Metal)
-            "Trash" -> color = resources.getColor(R.color.Trash)
+            "glass" -> color = resources.getColor(R.color.Glass)
+            "paper" -> color = resources.getColor(R.color.Paper)
+            "metal" -> color = resources.getColor(R.color.Metal)
+            "plastic" -> color = resources.getColor(R.color.Plastic)
             else -> {}
 
         }
-        Log.i("COLOR TAG", "$color")
         title_tv.setBackgroundColor(color)
     }
 
     private fun setElements(list:List<String>){
-        var last_index: Int = 0
+        var last_index: Int = -1
         var filtered_list:List<String> = list
         if(list.size > 3){
             filtered_list = list.take(3)
         }
         filtered_list.forEachIndexed { index, s ->
-            elements_list[index].text = s
+            elements_list[index].text = s.capitalize()
             last_index = index
         }
-        (last_index..3).forEach{elements_list[it].text = ""}
+        ((last_index + 1)..2).forEach{elements_list[it].text = ""}
 
     }
 

@@ -35,7 +35,9 @@ import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.image.ops.ResizeOp
 import org.tensorflow.lite.support.image.ops.ResizeWithCropOrPadOp
+import java.io.BufferedReader
 import java.io.File
+import java.io.InputStreamReader
 import java.util.concurrent.Executors
 import kotlin.properties.Delegates
 
@@ -51,12 +53,16 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
     lateinit var COLOR_GLASS: Scalar
     lateinit var COLOR_METAL: Scalar
     lateinit var COLOR_PAPER: Scalar
-    lateinit var COLOR_TRASH: Scalar
+    lateinit var COLOR_PLASTIC: Scalar
     val COLOR_TEXT  = Scalar(255.0, 255.0, 255.0, 255.0)
 
+
+    private lateinit var classification_array: Array<MutableList<String>>
+    val types = arrayOf("glass", "paper", "metal", "plastic")
+    val types_reverse_map_mutable = mutableMapOf<String, Int>()
+
+
     lateinit var colors_array:Array<Scalar>
-
-
     private val tfImageBuffer = TensorImage(DataType.UINT8)
 
     private val tfImageProcessor by lazy {
@@ -91,12 +97,20 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
     private val labelString by lazy{
         FileUtil.loadLabels(context, LABELS_PATH)
     }
-    private val labelTypeString by lazy{
-        //val buffered_rea
-        val labelTypeString = ArrayList<String>()
-        //InputStreamReader()
-        File(LABELS_TYPE_PATH).forEachLine { labelTypeString.add(it.split(",")[1]) }
-        return@lazy labelTypeString
+    private val labelType by lazy{
+        val reader = BufferedReader(InputStreamReader(context.assets.open(LABELS_TYPE_PATH),"UTF-8"))
+        val labelType = ArrayList<Int>()
+        var type:Int
+        var lineString: String?
+        while (true) {
+            lineString = reader.readLine()
+            Log.i("LOOP","$lineString")
+            if(lineString == null){ break}else{
+                type = types_reverse_map_mutable[lineString!!.split(",")[1].replace("\\s".toRegex(), "")]?:0
+            }
+            labelType.add(type)
+        }
+        return@lazy labelType
     }
 
     private val tfInputSize by lazy {
@@ -113,22 +127,21 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         viewFinder = view.findViewById(R.id.view_finder)
 
         //bind fragments
-        val types = arrayOf("Glass", "Paper", "Metal", "Trash")
-        val types_reverse_map_mutable = mutableMapOf<String, Int>()
+
+
         types.forEachIndexed { index, s -> types_reverse_map_mutable.put(s,index)}
         val types_reverse_map = types_reverse_map_mutable.toMap()
-
         COLOR_GLASS = color_to_scalar(resources.getColor(R.color.Glass))
         COLOR_METAL = color_to_scalar(resources.getColor(R.color.Metal))
         COLOR_PAPER = color_to_scalar(resources.getColor(R.color.Paper))
-        COLOR_TRASH = color_to_scalar(resources.getColor(R.color.Trash))
+        COLOR_PLASTIC = color_to_scalar(resources.getColor(R.color.Plastic))
 
         colors_array = Array<Scalar>(types.size,{Scalar(0.0)})
 
-        colors_array[types_reverse_map["Glass"]?:0] = COLOR_GLASS
-        colors_array[types_reverse_map["Metal"]?:0] = COLOR_METAL
-        colors_array[types_reverse_map["Paper"]?:0] = COLOR_PAPER
-        colors_array[types_reverse_map["Trash"]?:0] = COLOR_TRASH
+        colors_array[types_reverse_map["glass"]?:0] = COLOR_GLASS
+        colors_array[types_reverse_map["metal"]?:0] = COLOR_METAL
+        colors_array[types_reverse_map["paper"]?:0] = COLOR_PAPER
+        colors_array[types_reverse_map["plastic"]?:0] = COLOR_PLASTIC
 
 
         val top_left_fragment = RecyclingFragment(types[0])
@@ -157,10 +170,9 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         context = requireActivity()
         val parent = context.getParent()
         val status  = OpenCVLoader.initDebug()
-        Log.i("OPENCV", "status $status")
         bindCameraUseCases()
 
-        //Log.i("DATACHECK","$labelTypeString")
+
     }
 
     override fun onDestroyView() {
@@ -172,7 +184,6 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
             awaitTermination(1000, TimeUnit.MILLISECONDS)
         }
          */
-        Log.i("VIEW","view destroyed")
     }
 
     override fun onResume() {
@@ -281,13 +292,27 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
 
         //Log.i("MATRIX",mat.)
 
+        //var mutable_list = Array(4){MutableList<String>(0){""} }
+        classification_array = Array(types.size){MutableList<String>(0, {""})}
+        classification_array.forEach { it.clear() }
         prediction_filtered.forEach({add_prediction(mat, it)})
         //val pred = prediction_filtered[0]
+        //Log.i("CLASSIFICATION ARRAY","${classification_array[2]}")
+
+        //classification_array[0] = arrayOf("First").toList()
+        //classification_array[1] = arrayOf("Second", "Second","Second").toList()
+        //classification_array[2] = arrayOf("Third").toList()
+        //classification_array[3] = arrayOf("Fourth", "Fourth","Fourth").toList()
+
+        classification_array.forEachIndexed{index, list ->
+            setFragmentResult(types[index], bundleOf("list" to list.toList()))
+        }
 
         val newBitmap = Bitmap.createBitmap(mat.cols(), mat.rows(), Bitmap.Config.ARGB_8888)
         Utils.matToBitmap(mat, newBitmap)
         return newBitmap
     }
+
     fun add_prediction(mat:Mat, pred:ObjectDetectionHelper.ObjectPrediction){
         val width = mat.cols()
         val height = mat.rows()
@@ -297,11 +322,13 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         dbl_array.set(2,(pred.location.right - pred.location.left)*width.toDouble())
         dbl_array.set(3,(pred.location.bottom - pred.location.top)*height.toDouble())
         val rect = org.opencv.core.Rect(dbl_array)
-        val trash_type = 0;
-        var rectangle_color = colors_array[trash_type];
+        var rectangle_color = colors_array[labelType[pred.label]];
 
-        Imgproc.rectangle(mat, rect, rectangle_color,4)
-        Imgproc.putText(mat, labelString[pred.label], Point(pred.location.left*width.toDouble(), pred.location.top*height.toDouble() - height*0.03), Imgproc.FONT_HERSHEY_SIMPLEX,2.0, COLOR_TEXT,5)
+        var label_string = labelString[pred.label]
+        classification_array[labelType[pred.label]].add(label_string)
+
+        Imgproc.rectangle(mat, rect, rectangle_color,8)
+        Imgproc.putText(mat, label_string, Point(pred.location.left*width.toDouble(), pred.location.top*height.toDouble() - height*0.03), Imgproc.FONT_HERSHEY_SIMPLEX,2.0, COLOR_TEXT,5)
     }
 
 
@@ -311,7 +338,7 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         private const val ACCURACY_THRESHOLD = 0.5f
         private const val MODEL_PATH = "coco_ssd_mobilenet_v1_1.0_quant.tflite"
         private const val LABELS_PATH = "coco_ssd_mobilenet_v1_1.0_labels.txt"
-        private const val LABELS_TYPE_PATH = "assets/object_trash_type.txt"
+        private const val LABELS_TYPE_PATH = "object_trash_type.txt"
     }
 
     private fun color_to_scalar(c: Int): Scalar {
