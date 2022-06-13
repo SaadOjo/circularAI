@@ -32,12 +32,11 @@ class RecyclingFragment(key:String) : Fragment(R.layout.fragment_recycling) {
 
         elements_list = arrayListOf(e1_tv, e2_tv, e3_tv).toList()
 
+        setType(key)
+
+
         setFragmentResultListener(key) { requestKey, bundle ->
-            // We use a String here, but any type that can be put in a Bundle is supported
-            val type_result = bundle.getString("type")
-            if (type_result != null) {
-                setType(type_result)
-            }
+
             val list_result = bundle.get("list")
             if (list_result != null) {
                 setElements(list_result as List<String>)
@@ -50,6 +49,8 @@ class RecyclingFragment(key:String) : Fragment(R.layout.fragment_recycling) {
     private fun setType(type:String){
         var color:Int = Color.WHITE
         title_tv.text = type.capitalize()
+        Log.i("RECYCLING_FRAGMENT",  "$type")
+
         when(type){
             "glass" -> color = resources.getColor(R.color.Glass)
             "paper" -> color = resources.getColor(R.color.Paper)

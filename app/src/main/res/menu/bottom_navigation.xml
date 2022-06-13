@@ -11,4 +11,9 @@
         android:icon="@drawable/ic_baseline_map_24"
         android:title="Map" />
 
+    <item
+        android:id="@+id/nav_debug"
+        android:icon="@drawable/ic_baseline_group_work_24"
+        android:title="Map" />
+
 </menu>

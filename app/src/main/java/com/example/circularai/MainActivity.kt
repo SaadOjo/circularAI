@@ -28,6 +28,7 @@ class MainActivity : AppCompatActivity() {
 
         val f1 = detector_fragment()
         val f2 = map_fragment()
+        val f3 = debug_fragment()
 
         supportFragmentManager.beginTransaction().apply {
             replace(R.id.fragment, f1)
@@ -40,6 +41,8 @@ class MainActivity : AppCompatActivity() {
             when (item.getItemId()) {
                 R.id.nav_camera -> replaceFragment(f1)
                 R.id.nav_map -> replaceFragment(f2)
+                R.id.nav_debug -> replaceFragment(f3)
+
                 else -> {
                     replaceFragment(f1)
                 }

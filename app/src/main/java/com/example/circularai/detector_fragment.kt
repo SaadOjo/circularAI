@@ -154,16 +154,14 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         placeFragment(bottom_left_fragment, R.id.bottom_left_fragment_container)
         placeFragment(bottom_right_fragment, R.id.bottom_right_fragment_container)
 
+        /*
         val fragments = mapOf<String, RecyclingFragment>(
             types[0] to top_left_fragment,
             types[1] to top_right_fragment,
             types[2] to bottom_left_fragment,
             types[3] to bottom_right_fragment
         )
-        //set titles
-        fragments.forEach { (string, fragment) ->
-            setFragmentResult(string, bundleOf("type" to string))
-        }
+         */
 
 
         super.onViewCreated(view, savedInstanceState)
@@ -171,7 +169,6 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         val parent = context.getParent()
         val status  = OpenCVLoader.initDebug()
         bindCameraUseCases()
-
 
     }
 
