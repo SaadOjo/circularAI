@@ -5,7 +5,11 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.opengl.GLES20
+import android.opengl.GLSurfaceView
+import android.opengl.Matrix
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
@@ -13,57 +17,235 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.content.getSystemService
+import androidx.core.graphics.rotationMatrix
+import androidx.fragment.app.FragmentActivity
 import org.w3c.dom.Text
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.FloatBuffer
+import javax.microedition.khronos.egl.EGLConfig
+import javax.microedition.khronos.opengles.GL10
 
+
+fun loadShader(type: Int, shaderCode: String): Int {
+
+    // create a vertex shader type (GLES20.GL_VERTEX_SHADER)
+    // or a fragment shader type (GLES20.GL_FRAGMENT_SHADER)
+    return GLES20.glCreateShader(type).also { shader ->
+
+        // add the source code to the shader and compile it
+        GLES20.glShaderSource(shader, shaderCode)
+        GLES20.glCompileShader(shader)
+    }
+}
+
+class MyGLRenderer : GLSurfaceView.Renderer {
+
+    private val vPMatrix = FloatArray(16)
+    private val projectionMatrix = FloatArray(16)
+    private val viewMatrix = FloatArray(16)
+    private val rotationMatrix = FloatArray(16)
+
+    private lateinit var mTriangle: Triangle
+
+    override fun onSurfaceCreated(unused: GL10, config: EGLConfig) {
+        // Set the background frame color
+        GLES20.glClearColor(1.0f, 1.0f, 1.0f, 1.0f)
+        mTriangle = Triangle()
+    }
+
+    override fun onDrawFrame(unused: GL10) {
+        val scratch = FloatArray(16)
+        val time =  SystemClock.uptimeMillis() % 4000L
+        val angle = 0.090f * time.toInt()
+        Matrix.setRotateM(rotationMatrix, 0, angle, 0f, 0f, -1.0f)
+        // Redraw background color
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+        Matrix.setLookAtM(viewMatrix, 0, 0f, 0f, 3f, 0f, 0f, 0f,0f, 1.0f, 0.0f)
+        Matrix.multiplyMM(vPMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
+        Matrix.multiplyMM(scratch, 0, vPMatrix, 0, rotationMatrix, 0 )
+        mTriangle.draw(scratch)
+    }
+
+    override fun onSurfaceChanged(unused: GL10, width: Int, height: Int) {
+        GLES20.glViewport(0, 0, width, height)
+        val ratio: Float = width.toFloat()/ height.toFloat()
+        Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1f, 1f, 3f, 7f)
+    }
+
+}
+// number of coordinates per vertex in this array
+const val COORDS_PER_VERTEX = 3
+var triangleCoords = floatArrayOf(     // in counterclockwise order:
+    0.0f, 0.622008459f, 0.0f,      // top
+    -0.5f, -0.311004243f, 0.0f,    // bottom left
+    0.5f, -0.311004243f, 0.0f      // bottom right
+)
+
+class Triangle {
+
+    val color = floatArrayOf(0.63671875f, 0.76953125f, 0.22265625f, 1.0f)
+
+    private var vertexBuffer: FloatBuffer =
+        // (number of coordinate values * 4 bytes per float)
+        ByteBuffer.allocateDirect(triangleCoords.size * 4).run {
+            // use the device hardware's native byte order
+            order(ByteOrder.nativeOrder())
+
+            // create a floating point buffer from the ByteBuffer
+            asFloatBuffer().apply {
+                // add the coordinates to the FloatBuffer
+                put(triangleCoords)
+                // set the buffer to read the first coordinate
+                position(0)
+            }
+        }
+
+    private val vertexShaderCode =
+        "uniform mat4 uMVPMatrix;" +
+        "attribute vec4 vPosition;" +
+                "void main() {" +
+                "  gl_Position = uMVPMatrix * vPosition;" +
+                "}"
+
+    private val fragmentShaderCode =
+        "precision mediump float;" +
+                "uniform vec4 vColor;" +
+                "void main() {" +
+                "  gl_FragColor = vColor;" +
+                "}"
+
+    private var positionHandle: Int = 0
+    private var mColorHandle: Int = 0
+    private var vPMatrixHandle: Int = 0
+
+
+    private val vertexCount: Int = triangleCoords.size / COORDS_PER_VERTEX
+    private val vertexStride: Int = COORDS_PER_VERTEX * 4 // 4 bytes per vertex
+
+    private var mProgram: Int = 0
+
+    init {
+
+        val vertexShader: Int = loadShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode)
+        val fragmentShader: Int = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode)
+
+        // create empty OpenGL ES Program
+        mProgram = GLES20.glCreateProgram().also {
+
+            // add the vertex shader to program
+            GLES20.glAttachShader(it, vertexShader)
+
+            // add the fragment shader to program
+            GLES20.glAttachShader(it, fragmentShader)
+
+            // creates OpenGL ES program executables
+            GLES20.glLinkProgram(it)
+        }
+    }
+
+    fun draw(mvpMatrix: FloatArray) {
+        GLES20.glUseProgram(mProgram)
+
+        positionHandle = GLES20.glGetAttribLocation(mProgram, "vPosition").also {
+
+            // Enable a handle to the triangle vertices
+            GLES20.glEnableVertexAttribArray(it)
+
+            // Prepare the triangle coordinate data
+            GLES20.glVertexAttribPointer(
+                it,
+                COORDS_PER_VERTEX,
+                GLES20.GL_FLOAT,
+                false,
+                vertexStride,
+                vertexBuffer
+            )
+
+            mColorHandle = GLES20.glGetUniformLocation(mProgram, "vColor").also { colorHandle ->
+
+                // Set color for drawing the triangle
+                GLES20.glUniform4fv(colorHandle, 1, color, 0)
+            }
+
+            // get handle to shape's transformation matrix
+            vPMatrixHandle = GLES20.glGetUniformLocation(mProgram, "uMVPMatrix").also {PMatrixHandle ->
+                GLES20.glUniformMatrix4fv(PMatrixHandle, 1, false, mvpMatrix, 0)
+
+            }
+
+            // Pass the projection and view transformation to the shader
+
+            // Draw the triangle
+            GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vertexCount)
+
+            // Disable vertex array
+            GLES20.glDisableVertexAttribArray(it)
+
+
+        }
+    }
+}
+
+
+class MyGLSurfaceView(context: Context) : GLSurfaceView(context) {
+
+    private val renderer: MyGLRenderer
+
+    init {
+
+        // Create an OpenGL ES 2.0 context
+        setEGLContextClientVersion(2)
+            //renderMode = RENDERMODE_CONTINUOUSLY
+        renderer = MyGLRenderer()
+
+        // Set the Renderer for drawing on the GLSurfaceView
+        setRenderer(renderer)
+    }
+}
 
 class debug_fragment : Fragment(R.layout.fragment_debug), SensorEventListener {
 
+    private lateinit var context: FragmentActivity
     lateinit var sensorManager: SensorManager
     lateinit var gyro_sensor: Sensor
     private var rotationMatrix = FloatArray(16)
 
-    lateinit var title: TextView
-    lateinit var e1: TextView
-    lateinit var e2: TextView
-    lateinit var e3: TextView
+
+    private lateinit var glView: GLSurfaceView
 
      override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        val context = requireActivity()
         sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        val gyro_sensor: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+        gyro_sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
         sensorManager.registerListener(this, gyro_sensor, SensorManager.SENSOR_DELAY_UI)  // change speed accordingly
-
-        title = view.findViewById<TextView>(R.id.titile_tv)
-        e1 = view.findViewById<TextView>(R.id.debug_1_tv)
-        e2 = view.findViewById<TextView>(R.id.debug_2_tv)
-        e3 = view.findViewById<TextView>(R.id.debug_3_tv)
-
-        title.text = "Gyroscope Data"
 
         rotationMatrix[ 0] = 1F;
         rotationMatrix[ 4] = 1F;
         rotationMatrix[ 8] = 1F;
         rotationMatrix[12] = 1F;
+
     }
 
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+        context = requireActivity()
+        glView = MyGLSurfaceView(context)
+        return glView
+    }
     override fun onSensorChanged(event: SensorEvent?) {
 
         if (event != null) {
             if(event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR){
 
-                // convert the rotation-vector to a 4x4 matrix. the matrix
-                // is interpreted by Open GL as the inverse of the
-                // rotation-vector, which is what we want.
                 SensorManager.getRotationMatrixFromVector(
                     rotationMatrix , event.values);
-                e1.text = "X: ${event.values[0]}"
-                e2.text = "X: ${event.values[1]}"
-                e3.text = "X: ${event.values[2]}"
             }
         }
-
     }
 
      override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
