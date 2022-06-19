@@ -5,43 +5,107 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.MenuItem
+import android.widget.PopupMenu
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.circularai.databinding.ActivityMainBinding
+import com.firebase.ui.auth.AuthUI
+import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
+import com.firebase.ui.auth.data.model.FirebaseAuthUIAuthenticationResult
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import kotlin.random.Random
 
-class MainActivity : AppCompatActivity() {
 
-    private val permissions = listOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.CAMERA)
+
+class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
+
+    private val signInLauncher = registerForActivityResult(
+        FirebaseAuthUIActivityResultContract()
+    ) { res ->
+        this.onSignInResult(res)
+    }
+
+    private var user: FirebaseUser? = null
+    private val permissions = listOf(
+        Manifest.permission.ACCESS_COARSE_LOCATION,
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.CAMERA
+    )
+
     private val permissionsRequestCode = Random.nextInt(0, 10000)
 
-    lateinit var binding: ActivityMainBinding;
+    private lateinit var binding: ActivityMainBinding
+
+    private fun onSignInResult(result: FirebaseAuthUIAuthenticationResult) {
+        val response = result.idpResponse
+        if (result.resultCode == RESULT_OK) {
+            // Successfully signed in
+            user = FirebaseAuth.getInstance().currentUser!!
+            binding.mainActivityWelcomeTv.text = "Welcome, " + user?.displayName
+            // ...
+        } else {
+            // Sign in failed. If response is null the user canceled the
+            // sign-in flow using the back button. Otherwise check
+            // response.getError().getErrorCode() and handle the error.
+            // ...
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(getLayoutInflater())
         setContentView(binding.root)
 
+
+        if (user == null) {
+            // Choose authentication providers
+            val providers = arrayListOf(
+                AuthUI.IdpConfig.EmailBuilder().build()
+            )
+
+            // Create and launch sign-in intent
+            val signInIntent = AuthUI.getInstance()
+                .createSignInIntentBuilder()
+                .setAvailableProviders(providers)
+                .setLogo(R.drawable.ic_launcher_foreground)
+                .setTheme(R.style.Theme_CircularAI)
+                .build()
+            signInLauncher.launch(signInIntent)
+        }
+
+        binding.imageView.setOnClickListener {
+            val menu = PopupMenu(this, it)
+            menu.setOnMenuItemClickListener(this)
+            menu.inflate(R.menu.application_menu)
+            menu.show()
+        }
+
+
         val f1 = detector_fragment()
         val f2 = map_fragment()
-        val f3 = debug_fragment()
+        val f3 = fragment_history()
+        val f4 = debug_fragment()
 
         supportFragmentManager.beginTransaction().apply {
             replace(R.id.fragment, f1)
             commit()
         }
 
-        val nav_view = binding.bottomNavigationView;
+        val nav_view = binding.bottomNavigationView
 
         nav_view.setOnItemSelectedListener { item ->
             when (item.getItemId()) {
                 R.id.nav_camera -> replaceFragment(f1)
                 R.id.nav_map -> replaceFragment(f2)
-                R.id.nav_debug -> replaceFragment(f3)
+                R.id.hist_map -> replaceFragment(f3)
+                R.id.nav_debug -> replaceFragment(f4)
 
                 else -> {
                     replaceFragment(f1)
@@ -51,7 +115,7 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-    fun replaceFragment(fragment: Fragment): Boolean {
+    private fun replaceFragment(fragment: Fragment): Boolean {
         supportFragmentManager.beginTransaction().apply {
             replace(R.id.fragment, fragment)
             addToBackStack(null)
@@ -59,13 +123,15 @@ class MainActivity : AppCompatActivity() {
             return true
         }
     }
+
     override fun onResume() {
         super.onResume()
 
         // Request permissions each time the app resumes, since they can be revoked at any time
         if (!hasPermissions(this)) {
             ActivityCompat.requestPermissions(
-                this, permissions.toTypedArray(), permissionsRequestCode)
+                this, permissions.toTypedArray(), permissionsRequestCode
+            )
         } else {
             start_gps()
         }
@@ -92,5 +158,18 @@ class MainActivity : AppCompatActivity() {
     private fun start_gps(): Boolean {
         Toast.makeText(this, "Permissions have been granted", Toast.LENGTH_LONG).show()
         return true
+    }
+
+    override fun onMenuItemClick(item: MenuItem?): Boolean {
+        if (item != null) {
+            when (item.getItemId()) {
+                R.id.sign_out -> AuthUI.getInstance().signOut(this)
+                    .addOnCompleteListener { finish() }
+                else -> {
+                }
+            }
+            return true
+        }
+        return false
     }
 }

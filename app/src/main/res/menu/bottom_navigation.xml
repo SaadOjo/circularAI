@@ -12,6 +12,11 @@
         android:title="Map" />
 
     <item
+        android:id="@+id/hist_map"
+        android:icon="@drawable/ic_baseline_history_24"
+        android:title="History" />
+
+    <item
         android:id="@+id/nav_debug"
         android:icon="@drawable/ic_baseline_group_work_24"
         android:title="Debug" />

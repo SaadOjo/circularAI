@@ -41,7 +41,7 @@ class map_fragment : Fragment(R.layout.fragment_map) {
         mapView.location.addOnIndicatorPositionChangedListener(onIndicatorPositionChangedListener)
 
         val annotationApi = mapView?.annotations
-        val circleAnnotationManager = annotationApi.createCircleAnnotationManager()
+        val circleAnnotationManager = annotationApi?.createCircleAnnotationManager()
 
         // Add the resulting circle to the map.
 

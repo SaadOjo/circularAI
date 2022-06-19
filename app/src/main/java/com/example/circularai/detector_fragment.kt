@@ -10,7 +10,10 @@ import android.util.Size
 import android.view.Surface
 import androidx.fragment.app.Fragment
 import android.view.View
+import android.widget.Button
 import android.widget.ImageView
+import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -44,11 +47,14 @@ import kotlin.properties.Delegates
 
 class detector_fragment : Fragment(R.layout.fragment_detector) {
 
+    private lateinit var recycle_confirmation_dialog: AlertDialog
+    private lateinit var recycle_confirmation_dialog_view: View
     private lateinit var context: FragmentActivity
     private lateinit var bitmapBuffer: Bitmap
     private val executor = Executors.newSingleThreadExecutor()
     private var lensFacing: Int = CameraSelector.LENS_FACING_BACK
     private lateinit var viewFinder: ImageView
+    private lateinit var recycleButton: Button
 
     lateinit var COLOR_GLASS: Scalar
     lateinit var COLOR_METAL: Scalar
@@ -168,6 +174,28 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         context = requireActivity()
         val parent = context.getParent()
         val status  = OpenCVLoader.initDebug()
+        recycle_confirmation_dialog_view = layoutInflater.inflate(R.layout.confirm_dialog_layout, null)
+        recycle_confirmation_dialog = AlertDialog.Builder(context)
+            .setTitle("Confirm Recycling")
+            .setView(recycle_confirmation_dialog_view)
+            .setPositiveButton("Confirm"){ _,_ ->
+                //send data to firebase
+            }
+            .setNegativeButton("Back"){ _,_ ->
+                //Do nothing
+            }
+            .create()
+
+        recycleButton = view.findViewById(R.id.recycle_button)
+        recycleButton.setOnClickListener{
+            recycle_confirmation_dialog_view.findViewById<TextView>(R.id.plastic_count_tv).text = "Plastic: 1"
+            recycle_confirmation_dialog_view.findViewById<TextView>(R.id.metal_count_tv).text   = "Metal: 1"
+            recycle_confirmation_dialog_view.findViewById<TextView>(R.id.paper_count_tv).text   = "Paper: 1"
+            recycle_confirmation_dialog_view.findViewById<TextView>(R.id.glass_count_tv).text   = "Glass: 1"
+
+            recycle_confirmation_dialog.show()
+        }
+
         bindCameraUseCases()
 
     }

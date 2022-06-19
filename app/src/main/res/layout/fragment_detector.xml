@@ -40,7 +40,7 @@
         android:id="@+id/bottom_left_fragment_container"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/recycle_button"
         app:layout_constraintEnd_toStartOf="@+id/bottom_right_fragment_container"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
@@ -50,11 +50,20 @@
         android:id="@+id/bottom_right_fragment_container"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/recycle_button"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toEndOf="@+id/bottom_left_fragment_container"
         app:layout_constraintTop_toBottomOf="@+id/top_right_fragment_container" />
+
+    <Button
+        android:id="@+id/recycle_button"
+        android:layout_width="0dp"
+        android:layout_height="60dp"
+        android:text="Recycle"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
