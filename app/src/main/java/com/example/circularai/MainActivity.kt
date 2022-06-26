@@ -40,6 +40,12 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
 
     private val permissionsRequestCode = Random.nextInt(0, 10000)
 
+    private lateinit var f1: detector_fragment
+    private lateinit var f2: map_fragment
+    private lateinit var f3: fragment_history
+    private lateinit var f4: debug_fragment
+
+
     private lateinit var binding: ActivityMainBinding
 
     private fun onSignInResult(result: FirebaseAuthUIAuthenticationResult) {
@@ -48,6 +54,12 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
             // Successfully signed in
             user = FirebaseAuth.getInstance().currentUser!!
             binding.mainActivityWelcomeTv.text = "Welcome, " + user?.displayName
+
+            supportFragmentManager.beginTransaction().apply {
+                replace(R.id.fragment, f1)
+                commit()
+            }
+
             // ...
         } else {
             // Sign in failed. If response is null the user canceled the
@@ -88,15 +100,12 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
         }
 
 
-        val f1 = detector_fragment()
-        val f2 = map_fragment()
-        val f3 = fragment_history()
-        val f4 = debug_fragment()
+        f1 = detector_fragment()
+        f2 = map_fragment()
+        f3 = fragment_history()
+        f4 = debug_fragment()
 
-        supportFragmentManager.beginTransaction().apply {
-            replace(R.id.fragment, f1)
-            commit()
-        }
+
 
         val nav_view = binding.bottomNavigationView
 

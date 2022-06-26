@@ -23,6 +23,9 @@ import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.LifecycleOwner
 import com.example.android.camerax.tflite.ObjectDetectionHelper
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.database.FirebaseDatabase
 import org.opencv.android.OpenCVLoader
 import org.opencv.android.Utils
 import org.opencv.core.Mat
@@ -41,6 +44,9 @@ import org.tensorflow.lite.support.image.ops.ResizeWithCropOrPadOp
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.concurrent.Executors
 import kotlin.properties.Delegates
 
@@ -56,6 +62,9 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
     private lateinit var viewFinder: ImageView
     private lateinit var recycleButton: Button
 
+    private var user: FirebaseUser
+    private lateinit var recycling_history_list: MutableList<Map<String, Any?>>
+    lateinit var database: FirebaseDatabase
     lateinit var COLOR_GLASS: Scalar
     lateinit var COLOR_METAL: Scalar
     lateinit var COLOR_PAPER: Scalar
@@ -64,8 +73,14 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
 
 
     private lateinit var classification_array: Array<MutableList<String>>
+    private val classification_summary: Array<Int>
     val types = arrayOf("glass", "paper", "metal", "plastic")
     val types_reverse_map_mutable = mutableMapOf<String, Int>()
+
+    init{
+        classification_summary = Array<Int>(types.size){0}
+        user = FirebaseAuth.getInstance().currentUser!!
+    }
 
 
     lateinit var colors_array:Array<Scalar>
@@ -135,6 +150,8 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         //bind fragments
 
 
+        classification_array = Array(types.size){MutableList<String>(0, {""})}
+
         types.forEachIndexed { index, s -> types_reverse_map_mutable.put(s,index)}
         val types_reverse_map = types_reverse_map_mutable.toMap()
         COLOR_GLASS = color_to_scalar(resources.getColor(R.color.Glass))
@@ -149,6 +166,18 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         colors_array[types_reverse_map["paper"]?:0] = COLOR_PAPER
         colors_array[types_reverse_map["plastic"]?:0] = COLOR_PLASTIC
 
+        database = FirebaseDatabase.getInstance("https://arcelik-recycling-default-rtdb.firebaseio.com")
+        database.getReference("users/" + user.uid).get().addOnSuccessListener {
+            val value = it.value
+            if(value != null){
+                recycling_history_list = value as MutableList<Map<String, Any?>>
+            }
+            else{
+                recycling_history_list  =  mutableListOf<Map<String, Any?>>()
+            }
+        }.addOnFailureListener({
+            Log.i("INFO", "Failed to get the list")
+        })
 
         val top_left_fragment = RecyclingFragment(types[0])
         val top_right_fragment = RecyclingFragment(types[1])
@@ -180,6 +209,14 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
             .setView(recycle_confirmation_dialog_view)
             .setPositiveButton("Confirm"){ _,_ ->
                 //send data to firebase
+                val ref = database.getReference("users")
+                val plastic = classification_summary[types_reverse_map["plastic"]?:0]
+                val metal = classification_summary[types_reverse_map["metal"]?:0]
+                val glass = classification_summary[types_reverse_map["glass"]?:0]
+                val paper = classification_summary[types_reverse_map["paper"]?:0]
+                recycling_history_list.add(recycled_entry(epoch = LocalDateTime.now().toEpochSecond(
+                    ZoneOffset.UTC), plastic=plastic, metal=metal, glass=glass, paper=paper).toMap())
+                ref.child(user.uid).setValue(recycling_history_list)
             }
             .setNegativeButton("Back"){ _,_ ->
                 //Do nothing
@@ -188,11 +225,14 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
 
         recycleButton = view.findViewById(R.id.recycle_button)
         recycleButton.setOnClickListener{
-            recycle_confirmation_dialog_view.findViewById<TextView>(R.id.plastic_count_tv).text = "Plastic: 1"
-            recycle_confirmation_dialog_view.findViewById<TextView>(R.id.metal_count_tv).text   = "Metal: 1"
-            recycle_confirmation_dialog_view.findViewById<TextView>(R.id.paper_count_tv).text   = "Paper: 1"
-            recycle_confirmation_dialog_view.findViewById<TextView>(R.id.glass_count_tv).text   = "Glass: 1"
-
+            classification_array.forEachIndexed({i,it ->
+                classification_summary[i] = it.size
+            })
+            Log.i("INFO", classification_summary.contentToString())
+            recycle_confirmation_dialog_view.findViewById<TextView>(R.id.plastic_count_tv).text = "Plastic: " + classification_summary[types_reverse_map["plastic"]?:0].toString()
+            recycle_confirmation_dialog_view.findViewById<TextView>(R.id.metal_count_tv).text   = "Metal: " + classification_summary[types_reverse_map["metal"]?:0].toString()
+            recycle_confirmation_dialog_view.findViewById<TextView>(R.id.paper_count_tv).text   = "Paper: " + classification_summary[types_reverse_map["paper"]?:0].toString()
+            recycle_confirmation_dialog_view.findViewById<TextView>(R.id.glass_count_tv).text   = "Glass: " + classification_summary[types_reverse_map["glass"]?:0].toString()
             recycle_confirmation_dialog.show()
         }
 
@@ -306,7 +346,12 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
             prediction_filtered = prediction_filtered.take(3)
         }
 
-        if(prediction_filtered.size == 0){  return bitmap }
+        if(prediction_filtered.size == 0){
+            classification_array.forEach { it.clear()}
+            classification_array.forEachIndexed{index, list ->
+                setFragmentResult(types[index], bundleOf("list" to list.toList()))
+            }
+            return bitmap }
 
 
         //Log.i("PRED","$prediction_filtered")
@@ -318,9 +363,11 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         //Log.i("MATRIX",mat.)
 
         //var mutable_list = Array(4){MutableList<String>(0){""} }
-        classification_array = Array(types.size){MutableList<String>(0, {""})}
-        classification_array.forEach { it.clear() }
-        prediction_filtered.forEach({add_prediction(mat, it)})
+        //classification_array = Array(types.size){MutableList<String>(0, {""})}
+        classification_array.forEach { it.clear()}
+        prediction_filtered.forEachIndexed( {i, it -> add_prediction(mat, it)
+        })
+        //Log.i("INFO", classification_array.contentToString())
         //val pred = prediction_filtered[0]
         //Log.i("CLASSIFICATION ARRAY","${classification_array[2]}")
 
