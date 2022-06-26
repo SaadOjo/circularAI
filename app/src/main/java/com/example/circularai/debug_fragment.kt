@@ -19,6 +19,7 @@ import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.content.getSystemService
 import androidx.core.graphics.rotationMatrix
 import androidx.fragment.app.FragmentActivity
+import org.opencv.core.Mat
 import org.w3c.dom.Text
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -29,6 +30,67 @@ import javax.microedition.khronos.opengles.GL10
 
 private var gyroRotationMatrix = FloatArray(16)
 
+// number of coordinates per vertex in this array
+const val COORDS_PER_VERTEX = 3
+/*
+var objectCoords = floatArrayOf(     // in counterclockwise order:
+    0.0f, 0.622008459f, 0.0f,      // top
+    -0.5f, -0.311004243f, 0.0f,    // bottom left
+    0.5f, -0.311004243f, 0.0f      // bottom right
+)
+ */
+var objectCoords = floatArrayOf(     // in counterclockwise order:
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f,      // top
+     1.0f,  1.0f,  1.0f,      // top
+
+     1.0f,  1.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f,      // top
+    -1.0f, -1.0f,  1.0f,      // top
+
+    -1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,      // top
+     1.0f,  1.0f, -1.0f,      // top
+
+     1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,      // top
+    -1.0f, -1.0f, -1.0f,      // top
+
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f, -1.0f,      // top
+    -1.0f,  1.0f,  1.0f,      // top
+
+     1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,      // top
+    -1.0f,  1.0f,  1.0f,      // top
+
+
+     1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f, -1.0f,      // top
+    -1.0f, -1.0f,  1.0f,      // top
+
+     1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f,      // top
+    -1.0f, -1.0f,  1.0f,      // top
+
+     1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f, -1.0f,      // top
+     1.0f,  1.0f, -1.0f,      // top
+
+     1.0f,  1.0f, -1.0f,
+     1.0f,  1.0f,  1.0f,      // top
+     1.0f, -1.0f,  1.0f,      // top
+
+    -1.0f, -1.0f,  1.0f,
+    -1.0f, -1.0f, -1.0f,      // top
+    -1.0f,  1.0f, -1.0f,      // top
+
+    -1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f,  1.0f,      // top
+    -1.0f, -1.0f,  1.0f,      // top
+
+
+)
 
 fun loadShader(type: Int, shaderCode: String): Int {
 
@@ -41,76 +103,28 @@ fun loadShader(type: Int, shaderCode: String): Int {
         GLES20.glCompileShader(shader)
     }
 }
+class MyGLSurfaceView(context: Context) : GLSurfaceView(context) {
+
+    private val renderer: MyGLRenderer
+
+    init {
+
+        // Create an OpenGL ES 2.0 context
+        setEGLContextClientVersion(2)
+        //renderMode = RENDERMODE_CONTINUOUSLY
+        renderer = MyGLRenderer()
+
+        // Set the Renderer for drawing on the GLSurfaceView
+        setRenderer(renderer)
+    }
+}
+
 
 class MyGLRenderer : GLSurfaceView.Renderer {
 
-    private val vPMatrix = FloatArray(16)
-    private val projectionMatrix = FloatArray(16)
-    private val viewMatrix = FloatArray(16)
-    private val rotationMatrix = FloatArray(16)
-
-
-    private lateinit var mTriangle: Triangle
-
-    override fun onSurfaceCreated(unused: GL10, config: EGLConfig) {
-        // Set the background frame color
-        GLES20.glClearColor(1.0f, 1.0f, 1.0f, 1.0f)
-        mTriangle = Triangle()
-    }
-
-    override fun onDrawFrame(unused: GL10) {
-        val scratch = FloatArray(16)
-        val time =  SystemClock.uptimeMillis() % 4000L
-        val angle = 0.090f * time.toInt()
-        Matrix.setRotateM(rotationMatrix, 0, angle, 0f, 0f, -1.0f)
-        // Redraw background color
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
-        Matrix.setLookAtM(viewMatrix, 0, 0f, 0f, 3f, 0f, 0f, 0f,0f, 1.0f, 0.0f)
-        Matrix.multiplyMM(vPMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
-
-        Matrix.multiplyMM(scratch, 0, vPMatrix, 0, gyroRotationMatrix, 0 )
-        //Matrix.multiplyMM(scratch, 0, vPMatrix, 0, rotationMatrix, 0 )
-        mTriangle.draw(scratch)
-    }
-
-    override fun onSurfaceChanged(unused: GL10, width: Int, height: Int) {
-        GLES20.glViewport(0, 0, width, height)
-        val ratio: Float = width.toFloat()/ height.toFloat()
-        Matrix.perspectiveM(projectionMatrix, 0,60.0f ,ratio,0.0f,1.0f)
-        //Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1f, 1f, 3f, 7f)
-    }
-
-}
-// number of coordinates per vertex in this array
-const val COORDS_PER_VERTEX = 3
-var triangleCoords = floatArrayOf(     // in counterclockwise order:
-    0.0f, 0.622008459f, 0.0f,      // top
-    -0.5f, -0.311004243f, 0.0f,    // bottom left
-    0.5f, -0.311004243f, 0.0f      // bottom right
-)
-
-class Triangle {
-
-    val color = floatArrayOf(0.63671875f, 0.76953125f, 0.22265625f, 1.0f)
-
-    private var vertexBuffer: FloatBuffer =
-        // (number of coordinate values * 4 bytes per float)
-        ByteBuffer.allocateDirect(triangleCoords.size * 4).run {
-            // use the device hardware's native byte order
-            order(ByteOrder.nativeOrder())
-
-            // create a floating point buffer from the ByteBuffer
-            asFloatBuffer().apply {
-                // add the coordinates to the FloatBuffer
-                put(triangleCoords)
-                // set the buffer to read the first coordinate
-                position(0)
-            }
-        }
-
     private val vertexShaderCode =
         "uniform mat4 uMVPMatrix;" +
-        "attribute vec4 vPosition;" +
+                "attribute vec4 vPosition;" +
                 "void main() {" +
                 "  gl_Position = uMVPMatrix * vPosition;" +
                 "}"
@@ -126,14 +140,35 @@ class Triangle {
     private var mColorHandle: Int = 0
     private var vPMatrixHandle: Int = 0
 
+    val color = floatArrayOf(0.63671875f, 0.76953125f, 0.22265625f, 1.0f)
 
-    private val vertexCount: Int = triangleCoords.size / COORDS_PER_VERTEX
+    private val vertexCount: Int = objectCoords.size / COORDS_PER_VERTEX
     private val vertexStride: Int = COORDS_PER_VERTEX * 4 // 4 bytes per vertex
-
     private var mProgram: Int = 0
 
-    init {
+    private var vertexBuffer: FloatBuffer =
+        // (number of coordinate values * 4 bytes per float)
+        ByteBuffer.allocateDirect(objectCoords.size * 4).run {
+            // use the device hardware's native byte order
+            order(ByteOrder.nativeOrder())
 
+            // create a floating point buffer from the ByteBuffer
+            asFloatBuffer().apply {
+                // add the coordinates to the FloatBuffer
+                put(objectCoords)
+                // set the buffer to read the first coordinate
+                position(0)
+            }
+        }
+
+
+    private val vPMatrix = FloatArray(16)
+    private val projectionMatrix = FloatArray(16)
+    private val viewMatrix = FloatArray(16)
+    private val rotationMatrix = FloatArray(16)
+    private val aMatrix = FloatArray(16)
+
+    fun init(){
         val vertexShader: Int = loadShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode)
         val fragmentShader: Int = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode)
 
@@ -149,7 +184,10 @@ class Triangle {
             // creates OpenGL ES program executables
             GLES20.glLinkProgram(it)
         }
+
     }
+
+    //private lateinit var mTriangle: Triangle
 
     fun draw(mvpMatrix: FloatArray) {
         GLES20.glUseProgram(mProgram)
@@ -192,23 +230,39 @@ class Triangle {
 
         }
     }
-}
 
 
-class MyGLSurfaceView(context: Context) : GLSurfaceView(context) {
-
-    private val renderer: MyGLRenderer
-
-    init {
-
-        // Create an OpenGL ES 2.0 context
-        setEGLContextClientVersion(2)
-            //renderMode = RENDERMODE_CONTINUOUSLY
-        renderer = MyGLRenderer()
-
-        // Set the Renderer for drawing on the GLSurfaceView
-        setRenderer(renderer)
+    override fun onSurfaceCreated(unused: GL10, config: EGLConfig) {
+        // Set the background frame color
+        GLES20.glClearColor(1.0f, 1.0f, 1.0f, 1.0f)
+        init()
     }
+
+    override fun onDrawFrame(unused: GL10) {
+        val scratch = FloatArray(16)
+        val time =  SystemClock.uptimeMillis() % 4000L
+        val angle = 0.090f * time.toInt()
+        //Matrix.setRotateM(aMatrix, 0, 90.0f, 1f, 0f, 0f)
+        Matrix.setIdentityM(aMatrix,0)
+        // Redraw background color
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+        Matrix.setLookAtM(viewMatrix, 0, 0f, 0f, 6f, 0f, 0f, 0f,0f, 1.0f, 0.0f)
+        Matrix.multiplyMM(vPMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
+        //Matrix.rotateM(aMatrix, 0, 0.0f, 0f, 0f, -1.0f)
+        //Matrix.setIdentityM(aMatrix, 0)
+        Matrix.multiplyMM(rotationMatrix, 0, aMatrix,0 ,gyroRotationMatrix, 0)
+        Matrix.multiplyMM(scratch, 0, vPMatrix, 0, rotationMatrix, 0 )
+        //Matrix.multiplyMM(scratch, 0, vPMatrix, 0, rotationMatrix, 0 )
+        draw(scratch)
+    }
+
+    override fun onSurfaceChanged(unused: GL10, width: Int, height: Int) {
+        GLES20.glViewport(0, 0, width, height)
+        val ratio: Float = width.toFloat()/ height.toFloat()
+        Matrix.perspectiveM(projectionMatrix, 0,60.0f ,ratio,0.1f,10.0f)
+        //Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1f, 1f, 3f, 7f)
+    }
+
 }
 
 class debug_fragment : Fragment(R.layout.fragment_debug), SensorEventListener {
