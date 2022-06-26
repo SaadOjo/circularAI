@@ -27,6 +27,9 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 
+private var gyroRotationMatrix = FloatArray(16)
+
+
 fun loadShader(type: Int, shaderCode: String): Int {
 
     // create a vertex shader type (GLES20.GL_VERTEX_SHADER)
@@ -46,6 +49,7 @@ class MyGLRenderer : GLSurfaceView.Renderer {
     private val viewMatrix = FloatArray(16)
     private val rotationMatrix = FloatArray(16)
 
+
     private lateinit var mTriangle: Triangle
 
     override fun onSurfaceCreated(unused: GL10, config: EGLConfig) {
@@ -63,14 +67,17 @@ class MyGLRenderer : GLSurfaceView.Renderer {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
         Matrix.setLookAtM(viewMatrix, 0, 0f, 0f, 3f, 0f, 0f, 0f,0f, 1.0f, 0.0f)
         Matrix.multiplyMM(vPMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
-        Matrix.multiplyMM(scratch, 0, vPMatrix, 0, rotationMatrix, 0 )
+
+        Matrix.multiplyMM(scratch, 0, vPMatrix, 0, gyroRotationMatrix, 0 )
+        //Matrix.multiplyMM(scratch, 0, vPMatrix, 0, rotationMatrix, 0 )
         mTriangle.draw(scratch)
     }
 
     override fun onSurfaceChanged(unused: GL10, width: Int, height: Int) {
         GLES20.glViewport(0, 0, width, height)
         val ratio: Float = width.toFloat()/ height.toFloat()
-        Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1f, 1f, 3f, 7f)
+        Matrix.perspectiveM(projectionMatrix, 0,60.0f ,ratio,0.0f,1.0f)
+        //Matrix.frustumM(projectionMatrix, 0, -ratio, ratio, -1f, 1f, 3f, 7f)
     }
 
 }
@@ -209,7 +216,6 @@ class debug_fragment : Fragment(R.layout.fragment_debug), SensorEventListener {
     private lateinit var context: FragmentActivity
     lateinit var sensorManager: SensorManager
     lateinit var gyro_sensor: Sensor
-    private var rotationMatrix = FloatArray(16)
 
 
     private lateinit var glView: GLSurfaceView
@@ -219,12 +225,12 @@ class debug_fragment : Fragment(R.layout.fragment_debug), SensorEventListener {
 
         sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         gyro_sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
-        sensorManager.registerListener(this, gyro_sensor, SensorManager.SENSOR_DELAY_UI)  // change speed accordingly
+        sensorManager.registerListener(this, gyro_sensor, SensorManager.SENSOR_DELAY_GAME)  // change speed accordingly
 
-        rotationMatrix[ 0] = 1F;
-        rotationMatrix[ 4] = 1F;
-        rotationMatrix[ 8] = 1F;
-        rotationMatrix[12] = 1F;
+         gyroRotationMatrix[ 0] = 1F;
+         gyroRotationMatrix[ 4] = 1F;
+         gyroRotationMatrix[ 8] = 1F;
+         gyroRotationMatrix[12] = 1F;
 
     }
 
@@ -243,7 +249,7 @@ class debug_fragment : Fragment(R.layout.fragment_debug), SensorEventListener {
             if(event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR){
 
                 SensorManager.getRotationMatrixFromVector(
-                    rotationMatrix , event.values);
+                    gyroRotationMatrix , event.values);
             }
         }
     }

@@ -75,7 +75,7 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
         binding = ActivityMainBinding.inflate(getLayoutInflater())
         setContentView(binding.root)
 
-
+        /*
         if (user == null) {
             // Choose authentication providers
             val providers = arrayListOf(
@@ -92,6 +92,8 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
             signInLauncher.launch(signInIntent)
         }
 
+         */
+
         binding.imageView.setOnClickListener {
             val menu = PopupMenu(this, it)
             menu.setOnMenuItemClickListener(this)
@@ -104,6 +106,11 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
         f2 = map_fragment()
         f3 = fragment_history()
         f4 = debug_fragment()
+
+        supportFragmentManager.beginTransaction().apply {
+            replace(R.id.fragment, f4)
+            commit()
+        }
 
 
 
