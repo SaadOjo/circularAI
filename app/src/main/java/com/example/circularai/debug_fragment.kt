@@ -91,7 +91,7 @@ var objectCoords = floatArrayOf(     // in counterclockwise order:
 
 
 )
-
+/* Using the shaderUtility library for loading the shaders instead
 fun loadShader(type: Int, shaderCode: String): Int {
 
     // create a vertex shader type (GLES20.GL_VERTEX_SHADER)
@@ -103,16 +103,18 @@ fun loadShader(type: Int, shaderCode: String): Int {
         GLES20.glCompileShader(shader)
     }
 }
+ */
 class MyGLSurfaceView(context: Context) : GLSurfaceView(context) {
 
     private val renderer: MyGLRenderer
+    private val my_context = context
 
     init {
 
         // Create an OpenGL ES 2.0 context
         setEGLContextClientVersion(2)
         //renderMode = RENDERMODE_CONTINUOUSLY
-        renderer = MyGLRenderer()
+        renderer = MyGLRenderer(my_context)
 
         // Set the Renderer for drawing on the GLSurfaceView
         setRenderer(renderer)
@@ -120,8 +122,11 @@ class MyGLSurfaceView(context: Context) : GLSurfaceView(context) {
 }
 
 
-class MyGLRenderer : GLSurfaceView.Renderer {
+class MyGLRenderer(context: Context) : GLSurfaceView.Renderer {
 
+    private val my_context = context
+
+    /*
     private val vertexShaderCode =
         "uniform mat4 uMVPMatrix;" +
                 "attribute vec4 vPosition;" +
@@ -135,6 +140,7 @@ class MyGLRenderer : GLSurfaceView.Renderer {
                 "void main() {" +
                 "  gl_FragColor = vColor;" +
                 "}"
+     */
 
     private var positionHandle: Int = 0
     private var mColorHandle: Int = 0
@@ -146,6 +152,8 @@ class MyGLRenderer : GLSurfaceView.Renderer {
     private val vertexStride: Int = COORDS_PER_VERTEX * 4 // 4 bytes per vertex
     private var mProgram: Int = 0
 
+    private var vertexBuffer = to_float_buffer(objectCoords)
+    /*
     private var vertexBuffer: FloatBuffer =
         // (number of coordinate values * 4 bytes per float)
         ByteBuffer.allocateDirect(objectCoords.size * 4).run {
@@ -161,6 +169,8 @@ class MyGLRenderer : GLSurfaceView.Renderer {
             }
         }
 
+     */
+
 
     private val vPMatrix = FloatArray(16)
     private val projectionMatrix = FloatArray(16)
@@ -168,9 +178,33 @@ class MyGLRenderer : GLSurfaceView.Renderer {
     private val rotationMatrix = FloatArray(16)
     private val aMatrix = FloatArray(16)
 
-    fun init(){
-        val vertexShader: Int = loadShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode)
-        val fragmentShader: Int = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode)
+    fun to_float_buffer(float_array: FloatArray): FloatBuffer{
+                // (number of coordinate values * 4 bytes per float)
+            return ByteBuffer.allocateDirect(float_array.size * 4).run {
+                // use the device hardware's native byte order
+                order(ByteOrder.nativeOrder())
+
+                // create a floating point buffer from the ByteBuffer
+                asFloatBuffer().apply {
+                    // add the coordinates to the FloatBuffer
+                    put(float_array)
+                    // set the buffer to read the first coordinate
+                    position(0)
+                }
+            }
+    }
+
+    private fun init(){
+
+        val VERTEX_SHADER_NAME = "shaders/vertexShader.vert"
+        val FRAGMENT_SHADER_NAME = "shaders/fragmentShader.frag"
+        val vertexShader =
+            ShaderUtil.loadGLShader("SHADER",my_context, GLES20.GL_VERTEX_SHADER, VERTEX_SHADER_NAME)
+        val fragmentShader =
+            ShaderUtil.loadGLShader("SHADER", my_context, GLES20.GL_FRAGMENT_SHADER, FRAGMENT_SHADER_NAME)
+
+        //val vertexShader: Int = loadShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode)
+        //val fragmentShader: Int = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode)
 
         // create empty OpenGL ES Program
         mProgram = GLES20.glCreateProgram().also {
@@ -208,7 +242,6 @@ class MyGLRenderer : GLSurfaceView.Renderer {
             )
 
             mColorHandle = GLES20.glGetUniformLocation(mProgram, "vColor").also { colorHandle ->
-
                 // Set color for drawing the triangle
                 GLES20.glUniform4fv(colorHandle, 1, color, 0)
             }
@@ -276,6 +309,8 @@ class debug_fragment : Fragment(R.layout.fragment_debug), SensorEventListener {
 
      override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+         context =  requireActivity()
 
         sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
         gyro_sensor = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
