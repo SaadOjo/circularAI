@@ -1,12 +1,15 @@
 package com.example.circularai
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import android.opengl.GLUtils
 import android.opengl.Matrix
 import android.os.Bundle
 import android.os.SystemClock
@@ -27,6 +30,38 @@ import java.nio.FloatBuffer
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
+/*
+var objectCoords = floatArrayOf(     // in counterclockwise order:
+
+    //Front Square
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+
+     1.0f,  1.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f,
+    -1.0f, -1.0f,  1.0f,
+
+    //Top Square
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f,  1.0f,
+
+     1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f,  1.0f,
+
+    //right square
+     1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f,  1.0f, -1.0f,
+
+     1.0f,  1.0f, -1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f,
+
+)
+ */
 
 private var gyroRotationMatrix = FloatArray(16)
 
@@ -39,71 +74,42 @@ var objectCoords = floatArrayOf(     // in counterclockwise order:
     0.5f, -0.311004243f, 0.0f      // bottom right
 )
  */
-var objectCoords = floatArrayOf(     // in counterclockwise order:
-    -1.0f, -1.0f,  1.0f,
-     1.0f, -1.0f,  1.0f,      // top
-     1.0f,  1.0f,  1.0f,      // top
 
-     1.0f,  1.0f,  1.0f,
-    -1.0f,  1.0f,  1.0f,      // top
-    -1.0f, -1.0f,  1.0f,      // top
+fun square_texture_coordinates(x: Float, y: Float): FloatArray{
+    return floatArrayOf(      x,    y,
+                        x+0.25f,    y,
+                        x+0.25f,    y+0.25f,
 
-    -1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,      // top
-     1.0f,  1.0f, -1.0f,      // top
-
-     1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,      // top
-    -1.0f, -1.0f, -1.0f,      // top
-
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f, -1.0f,      // top
-    -1.0f,  1.0f,  1.0f,      // top
-
-     1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,      // top
-    -1.0f,  1.0f,  1.0f,      // top
-
-
-     1.0f, -1.0f,  1.0f,
-     1.0f, -1.0f, -1.0f,      // top
-    -1.0f, -1.0f,  1.0f,      // top
-
-     1.0f, -1.0f, -1.0f,
-    -1.0f, -1.0f, -1.0f,      // top
-    -1.0f, -1.0f,  1.0f,      // top
-
-     1.0f, -1.0f,  1.0f,
-     1.0f, -1.0f, -1.0f,      // top
-     1.0f,  1.0f, -1.0f,      // top
-
-     1.0f,  1.0f, -1.0f,
-     1.0f,  1.0f,  1.0f,      // top
-     1.0f, -1.0f,  1.0f,      // top
-
-    -1.0f, -1.0f,  1.0f,
-    -1.0f, -1.0f, -1.0f,      // top
-    -1.0f,  1.0f, -1.0f,      // top
-
-    -1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f,  1.0f,      // top
-    -1.0f, -1.0f,  1.0f,      // top
-
-
-)
-/* Using the shaderUtility library for loading the shaders instead
-fun loadShader(type: Int, shaderCode: String): Int {
-
-    // create a vertex shader type (GLES20.GL_VERTEX_SHADER)
-    // or a fragment shader type (GLES20.GL_FRAGMENT_SHADER)
-    return GLES20.glCreateShader(type).also { shader ->
-
-        // add the source code to the shader and compile it
-        GLES20.glShaderSource(shader, shaderCode)
-        GLES20.glCompileShader(shader)
-    }
+                        x+0.25f,    y+0.25f,
+                              x,    y+0.25f,
+                              x,    y,
+        )
 }
- */
+
+fun square_plane_coords(tM:FloatArray):FloatArray{
+
+    val base_array = floatArrayOf(
+                                //Front Square
+                                -1.0f, -1.0f,  1.0f,
+                                 1.0f, -1.0f,  1.0f,
+                                 1.0f,  1.0f,  1.0f,
+
+                                 1.0f,  1.0f,  1.0f,
+                                -1.0f,  1.0f,  1.0f,
+                                -1.0f, -1.0f,  1.0f,
+    )
+
+    var res = FloatArray(0)
+    var interm = FloatArray(4)
+    for(i in 0..5){
+        Matrix.multiplyMV(interm, 0, tM, 0, base_array.sliceArray(i*3 .. i*3 + 2) + floatArrayOf(1f),0 )
+        res = res + interm.sliceArray(0..2)
+    }
+    return res;
+}
+var plane_transformation_matrix = FloatArray(16)
+
+
 class MyGLSurfaceView(context: Context) : GLSurfaceView(context) {
 
     private val renderer: MyGLRenderer
@@ -125,25 +131,50 @@ class MyGLSurfaceView(context: Context) : GLSurfaceView(context) {
 class MyGLRenderer(context: Context) : GLSurfaceView.Renderer {
 
     private val my_context = context
+    private var objectCoords: FloatArray
+    private var textureCoords: FloatArray
 
-    /*
-    private val vertexShaderCode =
-        "uniform mat4 uMVPMatrix;" +
-                "attribute vec4 vPosition;" +
-                "void main() {" +
-                "  gl_Position = uMVPMatrix * vPosition;" +
-                "}"
+    init {
+        Matrix.setIdentityM(plane_transformation_matrix, 0)
+        objectCoords = square_plane_coords(plane_transformation_matrix)
 
-    private val fragmentShaderCode =
-        "precision mediump float;" +
-                "uniform vec4 vColor;" +
-                "void main() {" +
-                "  gl_FragColor = vColor;" +
-                "}"
-     */
+        Matrix.setIdentityM(plane_transformation_matrix, 0)
+        Matrix.rotateM(plane_transformation_matrix, 0, -90f,1f,0f,0f)
+        objectCoords = objectCoords + square_plane_coords(plane_transformation_matrix)
+
+
+        Matrix.setIdentityM(plane_transformation_matrix, 0)
+        Matrix.rotateM(plane_transformation_matrix, 0, 90f,1f,0f,0f)
+        objectCoords = objectCoords + square_plane_coords(plane_transformation_matrix)
+
+        Matrix.setIdentityM(plane_transformation_matrix, 0)
+        Matrix.rotateM(plane_transformation_matrix, 0, -90f,0f,1f,0f)
+        objectCoords = objectCoords + square_plane_coords(plane_transformation_matrix)
+
+        Matrix.setIdentityM(plane_transformation_matrix, 0)
+        Matrix.rotateM(plane_transformation_matrix, 0, 90f,0f,1f,0f)
+        objectCoords = objectCoords + square_plane_coords(plane_transformation_matrix)
+
+        Matrix.setIdentityM(plane_transformation_matrix, 0)
+        Matrix.rotateM(plane_transformation_matrix, 0, 180f,0f,1f,0f)
+        objectCoords = objectCoords + square_plane_coords(plane_transformation_matrix)
+
+
+        textureCoords = square_texture_coordinates(0.25f, 0.5f)  +
+        square_texture_coordinates(0.25f, 0.75f) +
+        square_texture_coordinates(0.25f, 0.25f) +
+        square_texture_coordinates(0f, 0.5f)     +
+        square_texture_coordinates(0.5f, 0.5f) +
+        square_texture_coordinates(0.75f, 0.5f)
+
+
+    }
+
 
     private var positionHandle: Int = 0
     private var mColorHandle: Int = 0
+    private var texPositionHandle: Int = 0
+    private var texUniformHandle: Int = 0
     private var vPMatrixHandle: Int = 0
 
     val color = floatArrayOf(0.63671875f, 0.76953125f, 0.22265625f, 1.0f)
@@ -153,23 +184,7 @@ class MyGLRenderer(context: Context) : GLSurfaceView.Renderer {
     private var mProgram: Int = 0
 
     private var vertexBuffer = to_float_buffer(objectCoords)
-    /*
-    private var vertexBuffer: FloatBuffer =
-        // (number of coordinate values * 4 bytes per float)
-        ByteBuffer.allocateDirect(objectCoords.size * 4).run {
-            // use the device hardware's native byte order
-            order(ByteOrder.nativeOrder())
-
-            // create a floating point buffer from the ByteBuffer
-            asFloatBuffer().apply {
-                // add the coordinates to the FloatBuffer
-                put(objectCoords)
-                // set the buffer to read the first coordinate
-                position(0)
-            }
-        }
-
-     */
+    private var texCoordsBuffer = to_float_buffer(textureCoords)
 
 
     private val vPMatrix = FloatArray(16)
@@ -177,6 +192,7 @@ class MyGLRenderer(context: Context) : GLSurfaceView.Renderer {
     private val viewMatrix = FloatArray(16)
     private val rotationMatrix = FloatArray(16)
     private val aMatrix = FloatArray(16)
+    private lateinit var textureBitmap: Bitmap;
 
     fun to_float_buffer(float_array: FloatArray): FloatBuffer{
                 // (number of coordinate values * 4 bytes per float)
@@ -203,6 +219,9 @@ class MyGLRenderer(context: Context) : GLSurfaceView.Renderer {
         val fragmentShader =
             ShaderUtil.loadGLShader("SHADER", my_context, GLES20.GL_FRAGMENT_SHADER, FRAGMENT_SHADER_NAME)
 
+
+
+
         //val vertexShader: Int = loadShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode)
         //val fragmentShader: Int = loadShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode)
 
@@ -219,12 +238,38 @@ class MyGLRenderer(context: Context) : GLSurfaceView.Renderer {
             GLES20.glLinkProgram(it)
         }
 
-    }
 
-    //private lateinit var mTriangle: Triangle
+
+        textureBitmap =
+            BitmapFactory.decodeStream(my_context.assets.open("garbage.png"))
+
+        //Enable blend
+        GLES20.glEnable(GLES20.GL_BLEND)
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST)
+        //Uses to prevent transparent area to turn in black
+        GLES20.glBlendFunc(GLES20.GL_ONE, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+
+        val textureUnit = IntArray(1)
+
+
+        GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+        GLES20.glGenTextures(textureUnit.size, textureUnit, 0)
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureUnit[0])
+
+        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, textureBitmap, 0)
+        GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D)
+
+        textureBitmap.recycle()
+
+
+
+
+    }
 
     fun draw(mvpMatrix: FloatArray) {
         GLES20.glUseProgram(mProgram)
+
+
 
         positionHandle = GLES20.glGetAttribLocation(mProgram, "vPosition").also {
 
@@ -240,28 +285,46 @@ class MyGLRenderer(context: Context) : GLSurfaceView.Renderer {
                 vertexStride,
                 vertexBuffer
             )
+        }
+        texPositionHandle = GLES20.glGetAttribLocation(mProgram, "aTexCoords").also {
 
-            mColorHandle = GLES20.glGetUniformLocation(mProgram, "vColor").also { colorHandle ->
-                // Set color for drawing the triangle
-                GLES20.glUniform4fv(colorHandle, 1, color, 0)
-            }
+            GLES20.glEnableVertexAttribArray(it)
 
-            // get handle to shape's transformation matrix
-            vPMatrixHandle = GLES20.glGetUniformLocation(mProgram, "uMVPMatrix").also {PMatrixHandle ->
-                GLES20.glUniformMatrix4fv(PMatrixHandle, 1, false, mvpMatrix, 0)
+            // Prepare the triangle coordinate data
+            GLES20.glVertexAttribPointer(
+                it,
+                2,
+                GLES20.GL_FLOAT,
+                false,
+                2*4,
+                texCoordsBuffer
+            )
+        }
 
-            }
+        mColorHandle = GLES20.glGetUniformLocation(mProgram, "vColor").also { colorHandle ->
+            // Set color for drawing the triangle
+            GLES20.glUniform4fv(colorHandle, 1, color, 0)
+        }
 
-            // Pass the projection and view transformation to the shader
-
-            // Draw the triangle
-            GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vertexCount)
-
-            // Disable vertex array
-            GLES20.glDisableVertexAttribArray(it)
-
+        // get handle to shape's transformation matrix
+        vPMatrixHandle = GLES20.glGetUniformLocation(mProgram, "uMVPMatrix").also {PMatrixHandle ->
+            GLES20.glUniformMatrix4fv(PMatrixHandle, 1, false, mvpMatrix, 0)
 
         }
+
+        texUniformHandle = GLES20.glGetUniformLocation(mProgram, "uTexture").also {
+            GLES20.glUniform1i(it, 0)
+        }
+
+        // Pass the projection and view transformation to the shader
+
+        // Draw the triangle
+        GLES20.glDrawArrays(GLES20.GL_TRIANGLES, 0, vertexCount)
+
+        // Disable vertex array
+        GLES20.glDisableVertexAttribArray(positionHandle)
+        GLES20.glDisableVertexAttribArray(texPositionHandle)
+
     }
 
 
@@ -277,8 +340,8 @@ class MyGLRenderer(context: Context) : GLSurfaceView.Renderer {
         val angle = 0.090f * time.toInt()
         //Matrix.setRotateM(aMatrix, 0, 90.0f, 1f, 0f, 0f)
         Matrix.setIdentityM(aMatrix,0)
-        // Redraw background color
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
+        // Redraw background color and clear depth buffer
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
         Matrix.setLookAtM(viewMatrix, 0, 0f, 0f, 6f, 0f, 0f, 0f,0f, 1.0f, 0.0f)
         Matrix.multiplyMM(vPMatrix, 0, projectionMatrix, 0, viewMatrix, 0)
         //Matrix.rotateM(aMatrix, 0, 0.0f, 0f, 0f, -1.0f)
