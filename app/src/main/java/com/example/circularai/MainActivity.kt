@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.view.MenuItem
 import android.widget.PopupMenu
 import android.widget.Toast
@@ -19,17 +20,21 @@ import com.firebase.ui.auth.FirebaseAuthUIActivityResultContract
 import com.firebase.ui.auth.data.model.FirebaseAuthUIAuthenticationResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import kotlin.random.Random
 
 
 
 class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
 
+    /*
     private val signInLauncher = registerForActivityResult(
         FirebaseAuthUIActivityResultContract()
     ) { res ->
         this.onSignInResult(res)
     }
+     */
 
     private var user: FirebaseUser? = null
     private val permissions = listOf(
@@ -45,15 +50,17 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
     private lateinit var f3: fragment_history
     private lateinit var f4: debug_fragment
 
+    private lateinit var auth: FirebaseAuth
+
 
     private lateinit var binding: ActivityMainBinding
 
+    /*
     private fun onSignInResult(result: FirebaseAuthUIAuthenticationResult) {
         val response = result.idpResponse
         if (result.resultCode == RESULT_OK) {
             // Successfully signed in
             user = FirebaseAuth.getInstance().currentUser!!
-            binding.mainActivityWelcomeTv.text = "Welcome, " + user?.displayName
 
             supportFragmentManager.beginTransaction().apply {
                 replace(R.id.fragment, f1)
@@ -69,13 +76,48 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
         }
     }
 
+     */
+
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(getLayoutInflater())
         setContentView(binding.root)
 
-        /*
+        auth = Firebase.auth
+
+        val email = "saad@gmail.com"
+        val password = "123456"
+        auth.signInWithEmailAndPassword(email, password)
+            .addOnCompleteListener(this) { task ->
+                if (task.isSuccessful) {
+                    // Sign in success, update UI with the signed-in user's information
+                    Log.d("MAIN", "createUserWithEmail:success")
+                    binding.mainActivityWelcomeTv.text = "Welcome, " + user?.displayName
+                    user = auth.currentUser
+                    f1 = detector_fragment()
+                    f2 = map_fragment()
+                    f3 = fragment_history()
+                    f4 = debug_fragment()
+
+
+                    supportFragmentManager.beginTransaction().apply {
+                        replace(R.id.fragment, f1)
+                        commit()
+                    }
+
+                    //updateUI(user)
+                } else {
+                    // If sign in fails, display a message to the user.
+                    Log.w("MAIN", "createUserWithEmail:failure", task.exception)
+                    Toast.makeText(baseContext, "Authentication failed.",
+                        Toast.LENGTH_SHORT).show()
+                    //updateUI(null)
+                }
+            }
+
+
+/*
         if (user == null) {
             // Choose authentication providers
             val providers = arrayListOf(
@@ -92,7 +134,7 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
             signInLauncher.launch(signInIntent)
         }
 
-         */
+*/
 
         binding.imageView.setOnClickListener {
             val menu = PopupMenu(this, it)
@@ -101,16 +143,6 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
             menu.show()
         }
 
-
-        f1 = detector_fragment()
-        f2 = map_fragment()
-        f3 = fragment_history()
-        f4 = debug_fragment()
-
-        supportFragmentManager.beginTransaction().apply {
-            replace(R.id.fragment, f4)
-            commit()
-        }
 
 
 
@@ -187,5 +219,13 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
             return true
         }
         return false
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val currentUser = auth.currentUser
+        if(currentUser != null){
+           // reload();
+        }
     }
 }
