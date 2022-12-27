@@ -45,6 +45,15 @@ class map_fragment : Fragment(R.layout.fragment_map) {
 
         // Add the resulting circle to the map.
 
+
+
+
+
+        circleAnnotationManager?.create(add_point(fromLngLat(12.47746472271569, 41.86886108617344)))
+        circleAnnotationManager?.create(add_point(fromLngLat(12.476025981538717, 41.89546142333354)))
+        circleAnnotationManager?.create(add_point(fromLngLat(12.526087842521806, 41.88615795070312)))
+        circleAnnotationManager?.create(add_point(fromLngLat(12.49244518056611, 41.90179692675658)))
+
         circleAnnotationManager?.create(add_point(fromLngLat(29.012303842239632, 41.068197827883125)))
         circleAnnotationManager?.create(add_point(fromLngLat(29.012475503606193, 41.071085455865855)))
         circleAnnotationManager?.create(add_point(fromLngLat(29.02866891724044, 41.10781465884691)))

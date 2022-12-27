@@ -36,7 +36,8 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
     }
      */
 
-    private var user: FirebaseUser? = null
+    //private var user: FirebaseUser? = null
+
     private val permissions = listOf(
         Manifest.permission.ACCESS_COARSE_LOCATION,
         Manifest.permission.ACCESS_FINE_LOCATION,
@@ -47,10 +48,10 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
 
     private lateinit var f1: detector_fragment
     private lateinit var f2: map_fragment
-    private lateinit var f3: fragment_history
-    private lateinit var f4: debug_fragment
+    //private lateinit var f3: fragment_history
+    private lateinit var f3: debug_fragment
 
-    private lateinit var auth: FirebaseAuth
+    //private lateinit var auth: FirebaseAuth
 
 
     private lateinit var binding: ActivityMainBinding
@@ -84,17 +85,31 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
         binding = ActivityMainBinding.inflate(getLayoutInflater())
         setContentView(binding.root)
 
-        auth = Firebase.auth
+        binding.mainActivityWelcomeTv.text = "Welcome, " //+ user?.displayName
+        //user = auth.currentUser
+        f1 = detector_fragment()
+        f2 = map_fragment()
+        //f3 = fragment_history()
+        f3 = debug_fragment()
 
-        val email = "saad@gmail.com"
-        val password = "123456"
+
+        supportFragmentManager.beginTransaction().apply {
+            replace(R.id.fragment, f1)
+            commit()
+        }
+
+        //auth = Firebase.auth
+        //val email = intent.getStringExtra("EMAIL")?:""
+        //val password = intent.getStringExtra("PASSWORD")?:""
+
+            /*
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener(this) { task ->
                 if (task.isSuccessful) {
                     // Sign in success, update UI with the signed-in user's information
                     Log.d("MAIN", "createUserWithEmail:success")
-                    binding.mainActivityWelcomeTv.text = "Welcome, " + user?.displayName
-                    user = auth.currentUser
+                    binding.mainActivityWelcomeTv.text = "Welcome, " //+ user?.displayName
+                    //user = auth.currentUser
                     f1 = detector_fragment()
                     f2 = map_fragment()
                     f3 = fragment_history()
@@ -115,9 +130,10 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
                     //updateUI(null)
                 }
             }
+             */
 
 
-/*
+    /*
         if (user == null) {
             // Choose authentication providers
             val providers = arrayListOf(
@@ -134,7 +150,8 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
             signInLauncher.launch(signInIntent)
         }
 
-*/
+     */
+
 
         binding.imageView.setOnClickListener {
             val menu = PopupMenu(this, it)
@@ -152,8 +169,8 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
             when (item.getItemId()) {
                 R.id.nav_camera -> replaceFragment(f1)
                 R.id.nav_map -> replaceFragment(f2)
-                R.id.hist_map -> replaceFragment(f3)
-                R.id.nav_debug -> replaceFragment(f4)
+                //R.id.hist_map -> replaceFragment(f3)
+                R.id.nav_debug -> replaceFragment(f3)
 
                 else -> {
                     replaceFragment(f1)
@@ -223,9 +240,12 @@ class MainActivity : AppCompatActivity(), PopupMenu.OnMenuItemClickListener {
 
     override fun onStart() {
         super.onStart()
+        /*
         val currentUser = auth.currentUser
         if(currentUser != null){
            // reload();
         }
+         */
     }
+
 }

@@ -62,9 +62,9 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
     private lateinit var viewFinder: ImageView
     private lateinit var recycleButton: Button
 
-    private var user: FirebaseUser
-    private lateinit var recycling_history_list: MutableList<Map<String, Any?>>
-    lateinit var database: FirebaseDatabase
+    //private var user: FirebaseUser
+    //private lateinit var recycling_history_list: MutableList<Map<String, Any?>>
+    //lateinit var database: FirebaseDatabase
     lateinit var COLOR_GLASS: Scalar
     lateinit var COLOR_METAL: Scalar
     lateinit var COLOR_PAPER: Scalar
@@ -79,7 +79,7 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
 
     init{
         classification_summary = Array<Int>(types.size){0}
-        user = FirebaseAuth.getInstance().currentUser!!
+        //user = FirebaseAuth.getInstance().currentUser!!
     }
 
 
@@ -166,6 +166,7 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         colors_array[types_reverse_map["paper"]?:0] = COLOR_PAPER
         colors_array[types_reverse_map["plastic"]?:0] = COLOR_PLASTIC
 
+        /*
         database = FirebaseDatabase.getInstance("https://arcelik-recycling-default-rtdb.firebaseio.com")
         database.getReference("users/" + user.uid).get().addOnSuccessListener {
             val value = it.value
@@ -178,6 +179,7 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
         }.addOnFailureListener({
             Log.i("INFO", "Failed to get the list")
         })
+         */
 
         val top_left_fragment = RecyclingFragment(types[0])
         val top_right_fragment = RecyclingFragment(types[1])
@@ -209,14 +211,17 @@ class detector_fragment : Fragment(R.layout.fragment_detector) {
             .setView(recycle_confirmation_dialog_view)
             .setPositiveButton("Confirm"){ _,_ ->
                 //send data to firebase
-                val ref = database.getReference("users")
+                //val ref = database.getReference("users")
                 val plastic = classification_summary[types_reverse_map["plastic"]?:0]
                 val metal = classification_summary[types_reverse_map["metal"]?:0]
                 val glass = classification_summary[types_reverse_map["glass"]?:0]
                 val paper = classification_summary[types_reverse_map["paper"]?:0]
+
+                    /*
                 recycling_history_list.add(recycled_entry(epoch = LocalDateTime.now().toEpochSecond(
                     ZoneOffset.UTC), plastic=plastic, metal=metal, glass=glass, paper=paper).toMap())
                 ref.child(user.uid).setValue(recycling_history_list)
+                     */
             }
             .setNegativeButton("Back"){ _,_ ->
                 //Do nothing
